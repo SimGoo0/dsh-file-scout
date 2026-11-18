@@ -61,7 +61,7 @@ setting.
 **From this Git repository** (no npm account needed):
 
 ```sh
-dsh plugin --profile <your-profile> add github:wrchuan/dsh-file-scout
+dsh plugin --profile <your-profile> add github:SimGoo0/dsh-file-scout
 ```
 
 **From a local directory**: in DSH open **Settings → Plugins → Add plugin** and

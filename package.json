@@ -44,11 +44,11 @@
   "author": "wrchuan",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/wrchuan/dsh-file-scout.git"
+    "url": "git+https://github.com/SimGoo0/dsh-file-scout.git"
   },
-  "homepage": "https://github.com/wrchuan/dsh-file-scout#readme",
+  "homepage": "https://github.com/SimGoo0/dsh-file-scout#readme",
   "bugs": {
-    "url": "https://github.com/wrchuan/dsh-file-scout/issues"
+    "url": "https://github.com/SimGoo0/dsh-file-scout/issues"
   },
   "keywords": [
     "deepseek-harness",
