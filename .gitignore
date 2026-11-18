@@ -1,0 +1,12 @@
+# Dependencies
+node_modules/
+
+# Packed artifacts
+*.tgz
+*.zip
+
+# Editor / OS noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "File Scout",
+    "description": "IDEA-style workspace file palette: double Shift opens one floating palette with ripgrep-backed name search and full-text regex content search; clicking a result opens the file in dsh-better-sidebar's editor at the match line. Requires dsh-better-sidebar for opening files."
+  }
+}

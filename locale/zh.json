@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "File Scout 工作区速查",
+    "description": "IDEA 式工作区文件速查面板：双击 Shift 唤起，文件名/路径搜索与 ripgrep 全文正则搜索合一，遵守 .gitignore、可配排除目录；点击结果在 dsh-better-sidebar 的编辑器中打开并跳到对应行。打开文件依赖 dsh-better-sidebar。"
+  }
+}

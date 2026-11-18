@@ -1,0 +1,15 @@
+# dsh-file-scout bundle patch: one plugin row.
+#
+# The host half serves POST /file-scout/{roots,search} as a plain webServer
+# prefix route (the dsh-workspace-search / dsh-better-sidebar pattern). It
+# deliberately does NOT use connection.rpc.handle(): that API rebinds the
+# registration owner to dsh-client-connection's own fiber, so
+# owner.webServer.register(...) throws regardless of this row's inject.
+#
+# The module self-declares inject = ['webServer', 'subprocess']; the row-level
+# inject is a UNION merge kept as belt-and-suspenders. Host services only —
+# `betterSidebar` lives in the CLIENT context and must never appear here.
+- insert:
+    - id: file-scout
+      name: dsh-file-scout
+      inject: [webServer]
