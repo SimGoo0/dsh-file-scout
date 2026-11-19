@@ -46,8 +46,8 @@ window.__ModuleLoader__.load({
         title: '工作区速查',
         nameMode: '文件名',
         contentMode: '内容',
-        placeholderName: '按文件名或路径搜索…（双击 Shift）',
-        placeholderContent: '按内容搜索，支持正则…（双击 Shift 后按 Tab）',
+        placeholderName: '按文件名或路径搜索…',
+        placeholderContent: '按内容搜索，支持正则…',
         caseToggle: '区分大小写',
         regexToggle: '正则表达式',
         hiddenToggle: '包含隐藏文件（.idea 等）',
@@ -84,8 +84,8 @@ window.__ModuleLoader__.load({
         title: 'File Scout',
         nameMode: 'Name',
         contentMode: 'Content',
-        placeholderName: 'Search files by name or path… (double Shift)',
-        placeholderContent: 'Search contents, regex supported… (double Shift, then Tab)',
+        placeholderName: 'Search files by name or path…',
+        placeholderContent: 'Search contents, regex supported…',
         caseToggle: 'Match case',
         regexToggle: 'Regular expression',
         hiddenToggle: 'Include hidden files (.idea etc.)',
@@ -696,9 +696,10 @@ window.__ModuleLoader__.load({
 
       if (!open) return null
 
+      const modeHistory = history.filter((item) => item.mode === mode)
       const suggestions = query.trim() === ''
         ? []
-        : history
+        : modeHistory
           .filter((item) => item.query.toLowerCase().includes(query.trim().toLowerCase()) && item.query !== query.trim())
           .slice(0, 5)
 
@@ -833,7 +834,7 @@ window.__ModuleLoader__.load({
           h('div', { className: 'dfs-status' }, status),
           h('div', { className: 'dfs-results', ref: listRef },
             matches === null && query.trim() === ''
-              ? history.length === 0
+              ? modeHistory.length === 0
                 ? null
                 : h('div', { className: 'dfs-history' },
                   h('div', { className: 'dfs-history-head' },
@@ -842,11 +843,13 @@ window.__ModuleLoader__.load({
                       type: 'button',
                       className: 'dfs-clear',
                       onClick: () => {
-                        saveHistory(root, [])
-                        setHistory([])
+                        // Clear only this mode's history; the other mode keeps its own.
+                        const kept = history.filter((item) => item.mode !== mode)
+                        saveHistory(root, kept)
+                        setHistory(kept)
                       },
                     }, t('clear'))),
-                  history.map((item) => h('button', {
+                  modeHistory.map((item) => h('button', {
                       key: `${item.mode}:${item.query}:${item.at}`,
                       type: 'button',
                       className: 'dfs-history-row',
