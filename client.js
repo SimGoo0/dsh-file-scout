@@ -722,7 +722,7 @@ window.__ModuleLoader__.load({
           : matches === null
             ? root === ''
               ? t('noRoot')
-              : t('emptyQuery')
+              : ''
             : rows.length === 0
               ? t('noResults')
               : `${rows.length}${meta?.truncated ? '+' : ''} · ${meta?.elapsedMs ?? ''}ms${meta?.truncated ? ' · …' : ''}`
@@ -833,21 +833,20 @@ window.__ModuleLoader__.load({
           h('div', { className: 'dfs-status' }, status),
           h('div', { className: 'dfs-results', ref: listRef },
             matches === null && query.trim() === ''
-              ? h('div', { className: 'dfs-history' },
-                history.length === 0
-                  ? h('div', { className: 'dfs-empty' }, t('emptyQuery'))
-                  : h(React.Fragment, null,
-                    h('div', { className: 'dfs-history-head' },
-                      h('span', null, t('history')),
-                      h('button', {
-                        type: 'button',
-                        className: 'dfs-clear',
-                        onClick: () => {
-                          saveHistory(root, [])
-                          setHistory([])
-                        },
-                      }, t('clear'))),
-                    history.map((item) => h('button', {
+              ? history.length === 0
+                ? null
+                : h('div', { className: 'dfs-history' },
+                  h('div', { className: 'dfs-history-head' },
+                    h('span', null, t('history')),
+                    h('button', {
+                      type: 'button',
+                      className: 'dfs-clear',
+                      onClick: () => {
+                        saveHistory(root, [])
+                        setHistory([])
+                      },
+                    }, t('clear'))),
+                  history.map((item) => h('button', {
                       key: `${item.mode}:${item.query}:${item.at}`,
                       type: 'button',
                       className: 'dfs-history-row',
@@ -857,7 +856,7 @@ window.__ModuleLoader__.load({
                       h('span', {
                         className: `dfs-history-mode ${item.mode === 'content' ? 'dfs-history-mode-content' : 'dfs-history-mode-name'}`,
                       }, item.mode === 'content' ? t('contentMode') : t('nameMode')),
-                      h('span', { className: 'dfs-history-query' }, item.query)))))
+                      h('span', { className: 'dfs-history-query' }, item.query))))
               : null,
             mode === 'content' && groups.length > 0
               ? groups.map((group) => h('div', { key: group.path, className: 'dfs-group' },
