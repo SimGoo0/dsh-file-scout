@@ -4,6 +4,17 @@ All notable changes to `dsh-file-scout` are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.4] - 2026-11-20
+
+### Changed
+
+- Clicking anywhere outside the mask dropdown closes it (document-level
+  pointer handler, so a click on the panel's blank area or on a result row
+  dismisses the list too).
+- The mask box is narrower (132px) and now shares the query box's surface:
+  one bordered pill holding both the input and the caret, with the same
+  border, background, radius and focus ring as the search field.
+
 ## [0.2.3] - 2026-11-20
 
 ### Changed
@@ -101,6 +112,7 @@ All notable changes to `dsh-file-scout` are recorded here. The format follows
   ripgrep with bounded budgets (100k listed files, 400 results, 30 s deadline)
   and reporting truncation plus rg diagnostics honestly.
 
+[0.2.4]: https://github.com/SimGoo0/dsh-file-scout/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/SimGoo0/dsh-file-scout/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/SimGoo0/dsh-file-scout/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/SimGoo0/dsh-file-scout/compare/v0.2.0...v0.2.1
