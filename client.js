@@ -763,24 +763,12 @@ window.__ModuleLoader__.load({
         }
       }
 
-      const openWithMenu = async (filePath, event) => {
+      const openWithMenu = (filePath, event) => {
         const rect = event.currentTarget.getBoundingClientRect()
-        const session = remoteSession()
-        let apps = []
-        if (session?.workspacePathApplications) {
-          try {
-            const result = await session.workspacePathApplications({ path: filePath })
-            if (result?.ok && Array.isArray(result.value)) apps = result.value
-            else console.warn('[dsh-file-scout] workspacePathApplications returned', result)
-          } catch (error) {
-            console.warn('[dsh-file-scout] workspacePathApplications failed:', error?.message ?? error)
-          }
-        }
         setAppMenu({
           path: filePath,
           x: Math.max(8, Math.min(rect.left, window.innerWidth - 240)),
-          y: Math.min(rect.bottom + 4, window.innerHeight - 40 - apps.length * 30),
-          apps,
+          y: Math.min(rect.bottom + 4, window.innerHeight - 120),
         })
       }
 
@@ -1244,13 +1232,6 @@ window.__ModuleLoader__.load({
               className: 'dfs-appmenu-item',
               onClick: () => launchWith(undefined),
             }, t('defaultApp')),
-            appMenu.apps.map((app) => h('button', {
-              key: app.id,
-              type: 'button',
-              className: 'dfs-appmenu-item',
-              title: app.id,
-              onClick: () => launchWith(app.id),
-            }, app.name ?? app.id)),
             h('div', { className: 'dfs-appmenu-sep' }),
             h('button', {
               type: 'button',

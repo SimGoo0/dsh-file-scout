@@ -4,6 +4,14 @@ All notable changes to `dsh-file-scout` are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.3.2] - 2026-11-20
+
+### Changed
+
+- The "open with" menu now offers exactly two rows — **默认应用打开** and
+  **在文件管理器中显示** — instead of listing every registered OS handler.
+  No more ambiguous "which app is selected/default" state.
+
 ## [0.3.1] - 2026-11-20
 
 ### Fixed
@@ -152,6 +160,7 @@ All notable changes to `dsh-file-scout` are recorded here. The format follows
   ripgrep with bounded budgets (100k listed files, 400 results, 30 s deadline)
   and reporting truncation plus rg diagnostics honestly.
 
+[0.3.2]: https://github.com/SimGoo0/dsh-file-scout/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/SimGoo0/dsh-file-scout/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/SimGoo0/dsh-file-scout/compare/v0.2.5...v0.3.0
 [0.2.5]: https://github.com/SimGoo0/dsh-file-scout/compare/v0.2.4...v0.2.5
