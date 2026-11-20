@@ -28,6 +28,13 @@ window.__ModuleLoader__.load({
 
     const NS = 'fileScout'
     const OPEN_EVENT = 'dsh-file-scout:open'
+    /** Common extensions listed first in the type picker, in this order. */
+    const COMMON_TYPES = [
+      'java', 'html', 'css', 'vue', 'js', 'ts', 'jsx', 'tsx', 'xml', 'sql', 'json', 'md',
+      'yml', 'yaml', 'properties', 'jsp', 'ftl', 'py', 'sh', 'bat',
+      'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'pdf', 'txt',
+      'png', 'jpg', 'jpeg', 'gif', 'svg',
+    ]
     const MIN_W = 460
     const MIN_H = 300
     const DEFAULT_W = 860
@@ -80,6 +87,8 @@ window.__ModuleLoader__.load({
         settingsReset: '恢复默认',
         reference: '发送到聊天框（@ 引用）',
         allTypes: '全部',
+        commonTypes: '常用类型',
+        otherTypes: '其他类型',
         typeRescan: '重扫文件类型',
         typeScanning: '扫描类型中…',
       },
@@ -121,6 +130,8 @@ window.__ModuleLoader__.load({
         settingsReset: 'Reset to defaults',
         reference: 'Reference in chat (@)',
         allTypes: 'All',
+        commonTypes: 'Common',
+        otherTypes: 'Other',
         typeRescan: 'Rescan file types',
         typeScanning: 'Scanning types…',
       },
@@ -775,6 +786,10 @@ window.__ModuleLoader__.load({
       if (!open) return null
 
       const modeHistory = history.filter((item) => item.mode === mode)
+      const typeCounts = new Map((typeIndex?.types ?? []).map((item) => [item.ext, item.count]))
+      const commonTypes = COMMON_TYPES.filter((ext) => typeCounts.has(ext))
+      const commonSet = new Set(commonTypes)
+      const otherTypes = (typeIndex?.types ?? []).filter((item) => !commonSet.has(item.ext))
       const suggestions = query.trim() === ''
         ? []
         : modeHistory
@@ -901,18 +916,21 @@ window.__ModuleLoader__.load({
             },
           }) : null,
           h('div', { className: 'dfs-types' },
-            h('button', {
-              type: 'button',
-              className: `dfs-type-chip${selectedType === '' ? ' dfs-type-on' : ''}`,
-              onClick: () => setSelectedType(''),
-            }, t('allTypes'), typeIndex ? ` ${typeIndex.total}` : ''),
-            ...((typeIndex?.types ?? []).slice(0, 12).map((tp) => h('button', {
-              key: tp.ext,
-              type: 'button',
-              title: `.${tp.ext} · ${tp.count}`,
-              className: `dfs-type-chip${selectedType === tp.ext ? ' dfs-type-on' : ''}`,
-              onClick: () => setSelectedType(selectedType === tp.ext ? '' : tp.ext),
-            }, tp.ext, ' ', String(tp.count)))),
+            h('select', {
+              className: 'dfs-type-select',
+              value: selectedType,
+              title: t('allTypes'),
+              onChange: (e) => setSelectedType(e.target.value),
+            },
+            h('option', { value: '' }, `${t('allTypes')} (${typeIndex?.total ?? 0})`),
+            commonTypes.length > 0
+              ? h('optgroup', { label: t('commonTypes') },
+                commonTypes.map((ext) => h('option', { key: ext, value: ext }, `${ext} (${typeCounts.get(ext)})`)))
+              : null,
+            otherTypes.length > 0
+              ? h('optgroup', { label: t('otherTypes') },
+                otherTypes.map((item) => h('option', { key: item.ext, value: item.ext }, `${item.ext} (${item.count})`)))
+              : null),
             h('button', {
               type: 'button',
               className: 'dfs-type-rescan',
@@ -1155,10 +1173,10 @@ window.__ModuleLoader__.load({
         'body[data-ds-dark-theme] .dfs-toggle:hover{background:var(--dsw-alias-bg-layer-2,#22222b)}',
         '.dfs-toggle-on,.dfs-toggle-on:hover{opacity:1;background:var(--dsw-alias-focus,#4a7bd0);border-color:var(--dsw-alias-focus,#4a7bd0);color:#ffffff}',
         '.dfs-exclude{margin:6px 14px 0;height:28px;flex:none;border:1px dashed var(--dsw-alias-border,#d9d9e0);border-radius:6px;background:transparent;color:inherit;opacity:.85;padding:0 8px;font-size:13px;outline:none;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}',
-        '.dfs-types{display:flex;gap:6px;align-items:center;padding:6px 14px 0;flex:none;overflow-x:auto;overflow-y:hidden}',
-        '.dfs-type-chip{flex:none;border:1px solid var(--dsw-alias-border,#d9d9e0);border-radius:999px;background:transparent;color:inherit;opacity:.7;padding:2px 9px;font-size:11.5px;cursor:pointer;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:nowrap}',
-        '.dfs-type-chip:hover{opacity:1}',
-        '.dfs-type-on,.dfs-type-on:hover{opacity:1;background:var(--dsw-alias-focus,#4a7bd0);border-color:var(--dsw-alias-focus,#4a7bd0);color:#ffffff}',
+        '.dfs-types{display:flex;gap:8px;align-items:center;padding:8px 14px 0;flex:none}',
+        '.dfs-type-select{flex:1;min-width:0;max-width:320px;height:28px;border:1px solid var(--dsw-alias-border,#d9d9e0);border-radius:6px;background:var(--dsw-alias-bg-layer-2,#f5f5f8);color:inherit;font-size:12.5px;padding:0 8px;outline:none;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}',
+        'body[data-ds-dark-theme] .dfs-type-select{background:#191920;border-color:#33333d}',
+        '.dfs-type-select:focus{border-color:var(--dsw-alias-focus,#4a7bd0)}',
         '.dfs-type-rescan{flex:none;border:none;border-radius:6px;background:transparent;color:inherit;opacity:.55;cursor:pointer;font-size:13px;padding:2px 6px;font-family:inherit}',
         '.dfs-type-rescan:hover{opacity:1;background:var(--dsw-alias-bg-layer-2,#ececf1)}',
         '.dfs-suggest{display:flex;gap:6px;align-items:center;padding:6px 14px 0;flex:none;overflow:hidden}',

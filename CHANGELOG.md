@@ -4,6 +4,16 @@ All notable changes to `dsh-file-scout` are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.1] - 2026-11-20
+
+### Changed
+
+- The file-type filter is now a dropdown instead of a chip strip. Common
+  extensions (java, html, css, vue, js, ts, xml, sql, json, md, doc/docx,
+  xls/xlsx, pdf, images, …) come first in a fixed order, with every other
+  extension found by the scan grouped under "其他类型" and ordered by count.
+  Each option shows its file count; the ⟳ rescan button stays.
+
 ## [0.2.0] - 2026-11-20
 
 ### Added
@@ -73,6 +83,7 @@ All notable changes to `dsh-file-scout` are recorded here. The format follows
   ripgrep with bounded budgets (100k listed files, 400 results, 30 s deadline)
   and reporting truncation plus rg diagnostics honestly.
 
+[0.2.1]: https://github.com/SimGoo0/dsh-file-scout/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/SimGoo0/dsh-file-scout/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/SimGoo0/dsh-file-scout/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/SimGoo0/dsh-file-scout/compare/v0.1.0...v0.1.1
