@@ -89,6 +89,7 @@ window.__ModuleLoader__.load({
         allTypes: '全部',
         commonTypes: '常用类型',
         otherTypes: '其他类型',
+        typeLabel: '文件掩码',
         typeRescan: '重扫文件类型',
         typeScanning: '扫描类型中…',
       },
@@ -132,6 +133,7 @@ window.__ModuleLoader__.load({
         allTypes: 'All',
         commonTypes: 'Common',
         otherTypes: 'Other',
+        typeLabel: 'Mask',
         typeRescan: 'Rescan file types',
         typeScanning: 'Scanning types…',
       },
@@ -368,9 +370,16 @@ window.__ModuleLoader__.load({
       return same ? target.slice(prefix.length) : undefined
     }
 
+    /** Parse a free-text mask list (`*.java, xml`) into bare extensions. */
+    function parseTypeMasks(text) {
+      return String(text || '')
+        .split(/[,;\s]+/u)
+        .map((part) => part.trim().replace(/^\*?\.?/u, ''))
+        .filter((ext) => /^[A-Za-z0-9_+-]{1,16}$/u.test(ext))
+    }
+
     /** DSH `@` spelling for one relative path: quoted when it contains whitespace. */
-    function mentionOf(relative) {
-      const target = String(relative).replace(/[\\/]+$/, '')
+    function mentionOf(relative) {      const target = String(relative).replace(/[\\/]+$/, '')
       if (/[\u0000-\u001f\u007f-\u009f"]/u.test(target)) return undefined
       return /\s/u.test(target) ? `@"${target}"` : `@${target}`
     }
@@ -471,7 +480,8 @@ window.__ModuleLoader__.load({
       const [exclude, setExclude] = useState(currentSettings().exclude)
       const [typeIndex, setTypeIndex] = useState(null)
       const [typeLoading, setTypeLoading] = useState(false)
-      const [selectedType, setSelectedType] = useState('')
+      const [typeText, setTypeText] = useState('')
+      const [typeOpen, setTypeOpen] = useState(false)
       const [root, setRoot] = useState(null)
       const [sessionId, setSessionId] = useState(null)
       const [busy, setBusy] = useState(false)
@@ -610,7 +620,7 @@ window.__ModuleLoader__.load({
             regex: regexMode,
             includeHidden,
             exclude,
-            types: selectedType ? [selectedType] : [],
+            types: parseTypeMasks(typeText),
           }).then((value) => {
             if (searchToken.current !== token) return
             setBusy(false)
@@ -632,7 +642,7 @@ window.__ModuleLoader__.load({
           })
         }, 200)
         return () => window.clearTimeout(timer)
-      }, [open, root, mode, query, caseSensitive, regexMode, includeHidden, exclude, selectedType, t])
+      }, [open, root, mode, query, caseSensitive, regexMode, includeHidden, exclude, typeText, t])
 
       // ── rows ───────────────────────────────────────────────────────────────
       const rows = useMemo(() => {
@@ -786,10 +796,11 @@ window.__ModuleLoader__.load({
       if (!open) return null
 
       const modeHistory = history.filter((item) => item.mode === mode)
-      const typeCounts = new Map((typeIndex?.types ?? []).map((item) => [item.ext, item.count]))
-      const commonTypes = COMMON_TYPES.filter((ext) => typeCounts.has(ext))
-      const commonSet = new Set(commonTypes)
-      const otherTypes = (typeIndex?.types ?? []).filter((item) => !commonSet.has(item.ext))
+      const scannedTypes = (typeIndex?.types ?? []).map((item) => item.ext)
+      const suggestedTypes = [
+        ...COMMON_TYPES.filter((ext) => scannedTypes.includes(ext)),
+        ...scannedTypes.filter((ext) => !COMMON_TYPES.includes(ext)),
+      ].slice(0, 40)
       const suggestions = query.trim() === ''
         ? []
         : modeHistory
@@ -916,21 +927,49 @@ window.__ModuleLoader__.load({
             },
           }) : null,
           h('div', { className: 'dfs-types' },
-            h('select', {
-              className: 'dfs-type-select',
-              value: selectedType,
-              title: t('allTypes'),
-              onChange: (e) => setSelectedType(e.target.value),
-            },
-            h('option', { value: '' }, `${t('allTypes')} (${typeIndex?.total ?? 0})`),
-            commonTypes.length > 0
-              ? h('optgroup', { label: t('commonTypes') },
-                commonTypes.map((ext) => h('option', { key: ext, value: ext }, `${ext} (${typeCounts.get(ext)})`)))
-              : null,
-            otherTypes.length > 0
-              ? h('optgroup', { label: t('otherTypes') },
-                otherTypes.map((item) => h('option', { key: item.ext, value: item.ext }, `${item.ext} (${item.count})`)))
-              : null),
+            h('span', { className: 'dfs-types-label' }, t('typeLabel')),
+            h('div', { className: 'dfs-combo' },
+              h('input', {
+                className: 'dfs-type-input',
+                type: 'text',
+                value: typeText,
+                placeholder: '*.java, *.xml',
+                spellCheck: false,
+                onChange: (e) => setTypeText(e.target.value),
+                onFocus: () => setTypeOpen(true),
+                onBlur: () => window.setTimeout(() => setTypeOpen(false), 120),
+                onKeyDown: (event) => {
+                  if (event.key === 'Escape') {
+                    event.stopPropagation()
+                    setTypeText('')
+                    setTypeOpen(false)
+                  }
+                },
+              }),
+              h('button', {
+                type: 'button',
+                className: 'dfs-combo-caret',
+                title: t('typeLabel'),
+                onMouseDown: (event) => event.preventDefault(),
+                onClick: () => setTypeOpen(!typeOpen),
+              }, '▾'),
+              typeOpen && suggestedTypes.length > 0
+                ? h('div', { className: 'dfs-type-menu' },
+                  suggestedTypes.map((ext) => h('button', {
+                    key: ext,
+                    type: 'button',
+                    className: 'dfs-type-item',
+                    onMouseDown: (event) => event.preventDefault(),
+                    onClick: () => {
+                      setTypeText((current) => {
+                        const parts = parseTypeMasks(current)
+                        if (parts.includes(ext)) return current
+                        return current.trim() === '' ? ext : `${current.trim()}, ${ext}`
+                      })
+                      setTypeOpen(false)
+                    },
+                  }, ext)))
+                : null),
             h('button', {
               type: 'button',
               className: 'dfs-type-rescan',
@@ -1174,9 +1213,19 @@ window.__ModuleLoader__.load({
         '.dfs-toggle-on,.dfs-toggle-on:hover{opacity:1;background:var(--dsw-alias-focus,#4a7bd0);border-color:var(--dsw-alias-focus,#4a7bd0);color:#ffffff}',
         '.dfs-exclude{margin:6px 14px 0;height:28px;flex:none;border:1px dashed var(--dsw-alias-border,#d9d9e0);border-radius:6px;background:transparent;color:inherit;opacity:.85;padding:0 8px;font-size:13px;outline:none;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}',
         '.dfs-types{display:flex;gap:8px;align-items:center;padding:8px 14px 0;flex:none}',
-        '.dfs-type-select{flex:1;min-width:0;max-width:320px;height:28px;border:1px solid var(--dsw-alias-border,#d9d9e0);border-radius:6px;background:var(--dsw-alias-bg-layer-2,#f5f5f8);color:inherit;font-size:12.5px;padding:0 8px;outline:none;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}',
-        'body[data-ds-dark-theme] .dfs-type-select{background:#191920;border-color:#33333d}',
-        '.dfs-type-select:focus{border-color:var(--dsw-alias-focus,#4a7bd0)}',
+        '.dfs-types-label{flex:none;opacity:.6;font-size:12.5px;user-select:none}',
+        '.dfs-combo{position:relative;display:flex;align-items:center;flex:1;min-width:0;max-width:340px}',
+        '.dfs-type-input{flex:1;min-width:0;height:28px;border:1px solid var(--dsw-alias-border,#d9d9e0);border-right:none;border-radius:6px 0 0 6px;background:var(--dsw-alias-bg-layer-2,#f5f5f8);color:inherit;font-size:12.5px;padding:0 8px;outline:none;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}',
+        'body[data-ds-dark-theme] .dfs-type-input{background:#191920;border-color:#33333d}',
+        '.dfs-type-input:focus{border-color:var(--dsw-alias-focus,#4a7bd0)}',
+        '.dfs-combo-caret{flex:none;width:26px;height:28px;border:1px solid var(--dsw-alias-border,#d9d9e0);border-radius:0 6px 6px 0;background:var(--dsw-alias-bg-layer-2,#f5f5f8);color:inherit;opacity:.7;cursor:pointer;font-size:11px;padding:0;font-family:inherit}',
+        'body[data-ds-dark-theme] .dfs-combo-caret{background:#191920;border-color:#33333d}',
+        '.dfs-combo-caret:hover{opacity:1}',
+        '.dfs-type-menu{position:absolute;top:30px;left:0;right:0;max-height:260px;overflow-y:auto;z-index:5;border:1px solid var(--dsw-alias-border,#d9d9e0);border-radius:8px;background:var(--dsw-alias-bg-layer-1,#ffffff);box-shadow:0 10px 28px rgba(0,0,0,.22);padding:4px}',
+        'body[data-ds-dark-theme] .dfs-type-menu{background:#1b1b22;border-color:#33333d}',
+        '.dfs-type-item{display:block;width:100%;border:none;border-radius:5px;background:transparent;color:inherit;text-align:left;font-size:12.5px;padding:3px 8px;cursor:pointer;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}',
+        '.dfs-type-item:hover{background:var(--dsw-alias-bg-layer-2,#ececf1)}',
+        'body[data-ds-dark-theme] .dfs-type-item:hover{background:#2a2a35}',
         '.dfs-type-rescan{flex:none;border:none;border-radius:6px;background:transparent;color:inherit;opacity:.55;cursor:pointer;font-size:13px;padding:2px 6px;font-family:inherit}',
         '.dfs-type-rescan:hover{opacity:1;background:var(--dsw-alias-bg-layer-2,#ececf1)}',
         '.dfs-suggest{display:flex;gap:6px;align-items:center;padding:6px 14px 0;flex:none;overflow:hidden}',

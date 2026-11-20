@@ -4,6 +4,15 @@ All notable changes to `dsh-file-scout` are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.2] - 2026-11-20
+
+### Changed
+
+- The type filter is a free-text mask box styled after IDEA's file mask:
+  a label, a text input (`*.java, *.xml`) and a caret that opens a suggestion
+  list drawn from the scan. Typing is authoritative — you can name a type the
+  scan has not seen yet — and no file counts are shown anywhere.
+
 ## [0.2.1] - 2026-11-20
 
 ### Changed
@@ -83,6 +92,7 @@ All notable changes to `dsh-file-scout` are recorded here. The format follows
   ripgrep with bounded budgets (100k listed files, 400 results, 30 s deadline)
   and reporting truncation plus rg diagnostics honestly.
 
+[0.2.2]: https://github.com/SimGoo0/dsh-file-scout/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/SimGoo0/dsh-file-scout/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/SimGoo0/dsh-file-scout/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/SimGoo0/dsh-file-scout/compare/v0.1.1...v0.1.2
