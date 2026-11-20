@@ -4,6 +4,17 @@ All notable changes to `dsh-file-scout` are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.3.1] - 2026-11-20
+
+### Fixed
+
+- "Open with…" did nothing because the client module never declared
+  `remote`/`remote.session` in its inject list: Cordis throws
+  `cannot get property "remote.session" without inject` on the nested read,
+  and the guarded adapter silently degraded. Both services are now declared
+  (the same pair dsh-better-sidebar needs), and every failure path logs a
+  `[dsh-file-scout]` warning to the console.
+
 ## [0.3.0] - 2026-11-20
 
 ### Added
@@ -141,6 +152,7 @@ All notable changes to `dsh-file-scout` are recorded here. The format follows
   ripgrep with bounded budgets (100k listed files, 400 results, 30 s deadline)
   and reporting truncation plus rg diagnostics honestly.
 
+[0.3.1]: https://github.com/SimGoo0/dsh-file-scout/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/SimGoo0/dsh-file-scout/compare/v0.2.5...v0.3.0
 [0.2.5]: https://github.com/SimGoo0/dsh-file-scout/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/SimGoo0/dsh-file-scout/compare/v0.2.3...v0.2.4

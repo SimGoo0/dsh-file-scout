@@ -751,8 +751,14 @@ window.__ModuleLoader__.load({
       /** Host remote face that can hand a path to the desktop (same as better-sidebar). */
       const remoteSession = () => {
         try {
-          return ctx?.get?.('remote')?.session
-        } catch {
+          const session = ctx?.get?.('remote')?.session
+          if (session === undefined) {
+            console.warn('[dsh-file-scout] remote.session unavailable')
+            return undefined
+          }
+          return session
+        } catch (error) {
+          console.warn('[dsh-file-scout] remote.session read failed:', error?.message ?? error)
           return undefined
         }
       }
@@ -765,8 +771,9 @@ window.__ModuleLoader__.load({
           try {
             const result = await session.workspacePathApplications({ path: filePath })
             if (result?.ok && Array.isArray(result.value)) apps = result.value
-          } catch {
-            // No OS handler list — the default entry still works.
+            else console.warn('[dsh-file-scout] workspacePathApplications returned', result)
+          } catch (error) {
+            console.warn('[dsh-file-scout] workspacePathApplications failed:', error?.message ?? error)
           }
         }
         setAppMenu({
@@ -791,8 +798,12 @@ window.__ModuleLoader__.load({
             path: menu.path,
             ...application === undefined ? {} : { application },
           })
-          if (!result?.ok) flashNotice(t('openFailed'))
-        } catch {
+          if (!result?.ok) {
+            console.warn('[dsh-file-scout] openWorkspacePath failed:', result)
+            flashNotice(t('openFailed'))
+          }
+        } catch (error) {
+          console.warn('[dsh-file-scout] openWorkspacePath threw:', error?.message ?? error)
           flashNotice(t('openFailed'))
         }
       }
@@ -1495,7 +1506,12 @@ window.__ModuleLoader__.load({
     }
 
     return {
-      inject: ['slots', 'locale'],
+      // `remote` and `remote.session` are declared together on purpose: Cordis
+      // validates the nested read `ctx.get('remote').session` against the
+      // inject list, and a missing entry throws
+      // `cannot get property "remote.session" without inject`, which would
+      // take the whole overlay render down.
+      inject: ['slots', 'locale', 'remote', 'remote.session'],
       apply(ctx) {
         ctx.effect(() => {
           const disposers = []
