@@ -697,6 +697,15 @@ window.__ModuleLoader__.load({
         setQuery(item.query)
       }
 
+      /** Multi-select: one dropdown row adds or removes its extension. */
+      const toggleType = (ext) => {
+        setTypeText((current) => {
+          const parts = parseTypeMasks(current)
+          const next = parts.includes(ext) ? parts.filter((item) => item !== ext) : [...parts, ext]
+          return next.join(', ')
+        })
+      }
+
       const onKeyDownInput = (event) => {
         if (event.key === 'Escape') {
           event.preventDefault()
@@ -894,6 +903,52 @@ window.__ModuleLoader__.load({
               onChange: (e) => setQuery(e.target.value),
               onKeyDown: onKeyDownInput,
             }),
+            h('div', { className: 'dfs-combo' },
+              h('input', {
+                className: 'dfs-type-input',
+                type: 'text',
+                value: typeText,
+                placeholder: t('typeLabel'),
+                title: t('typeLabel'),
+                spellCheck: false,
+                onChange: (e) => setTypeText(e.target.value),
+                onFocus: () => setTypeOpen(true),
+                onBlur: () => window.setTimeout(() => setTypeOpen(false), 150),
+                onKeyDown: (event) => {
+                  if (event.key === 'Escape') {
+                    event.stopPropagation()
+                    setTypeText('')
+                    setTypeOpen(false)
+                  }
+                },
+              }),
+              h('button', {
+                type: 'button',
+                className: 'dfs-combo-caret',
+                onMouseDown: (event) => event.preventDefault(),
+                onClick: () => setTypeOpen(!typeOpen),
+              }, '▾'),
+              typeOpen && suggestedTypes.length > 0
+                ? h('div', { className: 'dfs-type-menu' },
+                  suggestedTypes.map((ext) => {
+                    const picked = parseTypeMasks(typeText).includes(ext)
+                    return h('button', {
+                      key: ext,
+                      type: 'button',
+                      className: `dfs-type-item${picked ? ' dfs-type-item-on' : ''}`,
+                      onMouseDown: (event) => event.preventDefault(),
+                      onClick: () => toggleType(ext),
+                    },
+                      h('span', { className: 'dfs-type-check' }, picked ? '✓' : ''),
+                      ext)
+                  }))
+                : null),
+            h('button', {
+              type: 'button',
+              className: 'dfs-type-rescan',
+              title: typeLoading ? t('typeScanning') : t('typeRescan'),
+              onClick: () => scanTypesNow(),
+            }, typeLoading ? '…' : '⟳'),
             mode === 'content' ? h('button', {
               type: 'button',
               title: t('caseToggle'),
@@ -926,56 +981,6 @@ window.__ModuleLoader__.load({
               updateSettings({ exclude: e.target.value })
             },
           }) : null,
-          h('div', { className: 'dfs-types' },
-            h('span', { className: 'dfs-types-label' }, t('typeLabel')),
-            h('div', { className: 'dfs-combo' },
-              h('input', {
-                className: 'dfs-type-input',
-                type: 'text',
-                value: typeText,
-                placeholder: '*.java, *.xml',
-                spellCheck: false,
-                onChange: (e) => setTypeText(e.target.value),
-                onFocus: () => setTypeOpen(true),
-                onBlur: () => window.setTimeout(() => setTypeOpen(false), 120),
-                onKeyDown: (event) => {
-                  if (event.key === 'Escape') {
-                    event.stopPropagation()
-                    setTypeText('')
-                    setTypeOpen(false)
-                  }
-                },
-              }),
-              h('button', {
-                type: 'button',
-                className: 'dfs-combo-caret',
-                title: t('typeLabel'),
-                onMouseDown: (event) => event.preventDefault(),
-                onClick: () => setTypeOpen(!typeOpen),
-              }, '▾'),
-              typeOpen && suggestedTypes.length > 0
-                ? h('div', { className: 'dfs-type-menu' },
-                  suggestedTypes.map((ext) => h('button', {
-                    key: ext,
-                    type: 'button',
-                    className: 'dfs-type-item',
-                    onMouseDown: (event) => event.preventDefault(),
-                    onClick: () => {
-                      setTypeText((current) => {
-                        const parts = parseTypeMasks(current)
-                        if (parts.includes(ext)) return current
-                        return current.trim() === '' ? ext : `${current.trim()}, ${ext}`
-                      })
-                      setTypeOpen(false)
-                    },
-                  }, ext)))
-                : null),
-            h('button', {
-              type: 'button',
-              className: 'dfs-type-rescan',
-              title: typeLoading ? t('typeScanning') : t('typeRescan'),
-              onClick: () => scanTypesNow(),
-            }, typeLoading ? '…' : '⟳')),
           suggestions.length > 0 ? h('div', { className: 'dfs-suggest' },
             h('span', { className: 'dfs-suggest-label' }, t('history')),
             suggestions.map((item) => h('button', {
@@ -1212,20 +1217,20 @@ window.__ModuleLoader__.load({
         'body[data-ds-dark-theme] .dfs-toggle:hover{background:var(--dsw-alias-bg-layer-2,#22222b)}',
         '.dfs-toggle-on,.dfs-toggle-on:hover{opacity:1;background:var(--dsw-alias-focus,#4a7bd0);border-color:var(--dsw-alias-focus,#4a7bd0);color:#ffffff}',
         '.dfs-exclude{margin:6px 14px 0;height:28px;flex:none;border:1px dashed var(--dsw-alias-border,#d9d9e0);border-radius:6px;background:transparent;color:inherit;opacity:.85;padding:0 8px;font-size:13px;outline:none;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}',
-        '.dfs-types{display:flex;gap:8px;align-items:center;padding:8px 14px 0;flex:none}',
-        '.dfs-types-label{flex:none;opacity:.6;font-size:12.5px;user-select:none}',
-        '.dfs-combo{position:relative;display:flex;align-items:center;flex:1;min-width:0;max-width:340px}',
-        '.dfs-type-input{flex:1;min-width:0;height:28px;border:1px solid var(--dsw-alias-border,#d9d9e0);border-right:none;border-radius:6px 0 0 6px;background:var(--dsw-alias-bg-layer-2,#f5f5f8);color:inherit;font-size:12.5px;padding:0 8px;outline:none;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}',
+        '.dfs-combo{position:relative;display:flex;align-items:center;flex:none;width:170px}',
+        '.dfs-type-input{flex:1;min-width:0;height:34px;border:1px solid var(--dsw-alias-border,#d9d9e0);border-right:none;border-radius:8px 0 0 8px;background:var(--dsw-alias-bg-layer-2,#f5f5f8);color:inherit;font-size:12.5px;padding:0 8px;outline:none;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}',
         'body[data-ds-dark-theme] .dfs-type-input{background:#191920;border-color:#33333d}',
         '.dfs-type-input:focus{border-color:var(--dsw-alias-focus,#4a7bd0)}',
-        '.dfs-combo-caret{flex:none;width:26px;height:28px;border:1px solid var(--dsw-alias-border,#d9d9e0);border-radius:0 6px 6px 0;background:var(--dsw-alias-bg-layer-2,#f5f5f8);color:inherit;opacity:.7;cursor:pointer;font-size:11px;padding:0;font-family:inherit}',
+        '.dfs-combo-caret{flex:none;width:24px;height:34px;border:1px solid var(--dsw-alias-border,#d9d9e0);border-radius:0 8px 8px 0;background:var(--dsw-alias-bg-layer-2,#f5f5f8);color:inherit;opacity:.7;cursor:pointer;font-size:11px;padding:0;font-family:inherit}',
         'body[data-ds-dark-theme] .dfs-combo-caret{background:#191920;border-color:#33333d}',
         '.dfs-combo-caret:hover{opacity:1}',
-        '.dfs-type-menu{position:absolute;top:30px;left:0;right:0;max-height:260px;overflow-y:auto;z-index:5;border:1px solid var(--dsw-alias-border,#d9d9e0);border-radius:8px;background:var(--dsw-alias-bg-layer-1,#ffffff);box-shadow:0 10px 28px rgba(0,0,0,.22);padding:4px}',
+        '.dfs-type-menu{position:absolute;top:36px;left:0;right:0;max-height:280px;overflow-y:auto;z-index:6;border:1px solid var(--dsw-alias-border,#d9d9e0);border-radius:8px;background:var(--dsw-alias-bg-layer-1,#ffffff);box-shadow:0 10px 28px rgba(0,0,0,.22);padding:4px}',
         'body[data-ds-dark-theme] .dfs-type-menu{background:#1b1b22;border-color:#33333d}',
-        '.dfs-type-item{display:block;width:100%;border:none;border-radius:5px;background:transparent;color:inherit;text-align:left;font-size:12.5px;padding:3px 8px;cursor:pointer;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}',
+        '.dfs-type-item{display:flex;align-items:center;gap:6px;width:100%;border:none;border-radius:5px;background:transparent;color:inherit;text-align:left;font-size:12.5px;padding:3px 8px;cursor:pointer;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}',
         '.dfs-type-item:hover{background:var(--dsw-alias-bg-layer-2,#ececf1)}',
         'body[data-ds-dark-theme] .dfs-type-item:hover{background:#2a2a35}',
+        '.dfs-type-check{flex:none;width:12px;text-align:center;color:var(--dsw-alias-focus,#4a7bd0);font-size:11px}',
+        '.dfs-type-item-on{color:var(--dsw-alias-focus,#4a7bd0);font-weight:600}',
         '.dfs-type-rescan{flex:none;border:none;border-radius:6px;background:transparent;color:inherit;opacity:.55;cursor:pointer;font-size:13px;padding:2px 6px;font-family:inherit}',
         '.dfs-type-rescan:hover{opacity:1;background:var(--dsw-alias-bg-layer-2,#ececf1)}',
         '.dfs-suggest{display:flex;gap:6px;align-items:center;padding:6px 14px 0;flex:none;overflow:hidden}',

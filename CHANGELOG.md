@@ -4,6 +4,15 @@ All notable changes to `dsh-file-scout` are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.3] - 2026-11-20
+
+### Changed
+
+- The file mask now sits inline to the right of the query box (IDEA-style)
+  instead of on its own row. Its dropdown is a multi-select: each row toggles
+  one extension with a ✓, and the text box still accepts hand-typed masks
+  (`*.java, *.xml`). The rescan button follows the box.
+
 ## [0.2.2] - 2026-11-20
 
 ### Changed
@@ -92,6 +101,7 @@ All notable changes to `dsh-file-scout` are recorded here. The format follows
   ripgrep with bounded budgets (100k listed files, 400 results, 30 s deadline)
   and reporting truncation plus rg diagnostics honestly.
 
+[0.2.3]: https://github.com/SimGoo0/dsh-file-scout/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/SimGoo0/dsh-file-scout/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/SimGoo0/dsh-file-scout/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/SimGoo0/dsh-file-scout/compare/v0.1.2...v0.2.0
