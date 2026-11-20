@@ -1,6 +1,6 @@
 {
   "name": "dsh-file-scout",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "IDEA-style workspace file palette for DSH: Ctrl+P opens ripgrep-backed name search, Ctrl+Shift+F opens full-text regex content search, and results open in dsh-better-sidebar's editor at the match line.",
   "type": "module",
   "main": "./index.js",
