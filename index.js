@@ -511,6 +511,11 @@ export function apply(ctx) {
             const mode = body?.mode === 'content' ? 'content' : 'name'
             const controller = new AbortController()
             const timer = setTimeout(() => controller.abort(), LIMITS.timeoutMs)
+            // The client aborts its fetch when a newer query arrives; that close
+            // must kill this ripgrep instead of letting processes accumulate.
+            res.on('close', () => {
+              if (!res.writableEnded) controller.abort()
+            })
             const started = Date.now()
             try {
               const spec = {
@@ -555,6 +560,9 @@ export function apply(ctx) {
             }
             const controller = new AbortController()
             const timer = setTimeout(() => controller.abort(), LIMITS.timeoutMs)
+            res.on('close', () => {
+              if (!res.writableEnded) controller.abort()
+            })
             const started = Date.now()
             try {
               const result = await scanTypes(ctx, {

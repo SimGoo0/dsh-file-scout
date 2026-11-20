@@ -4,6 +4,22 @@ All notable changes to `dsh-file-scout` are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.3.3] - 2026-11-20
+
+### Fixed
+
+- **ripgrep processes piled up.** Every keystroke started a new `rg`, and
+  neither side cancelled the previous one: the client merely ignored its
+  response and the host only aborted on the 30 s deadline. Typing a few
+  characters left several full-tree scans running (Task Manager showed a stack
+  of `rg.exe`).
+  - The client now aborts the in-flight request when the query changes or the
+    palette closes.
+  - The host aborts (and kills its `rg`) when the response socket closes before
+    the work finished.
+  - Type scans are single-flight: a new open/⟳ aborts the previous scan, so at
+    most one scan process exists at a time.
+
 ## [0.3.2] - 2026-11-20
 
 ### Changed
@@ -160,6 +176,7 @@ All notable changes to `dsh-file-scout` are recorded here. The format follows
   ripgrep with bounded budgets (100k listed files, 400 results, 30 s deadline)
   and reporting truncation plus rg diagnostics honestly.
 
+[0.3.3]: https://github.com/SimGoo0/dsh-file-scout/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/SimGoo0/dsh-file-scout/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/SimGoo0/dsh-file-scout/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/SimGoo0/dsh-file-scout/compare/v0.2.5...v0.3.0

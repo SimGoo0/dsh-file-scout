@@ -336,11 +336,12 @@ window.__ModuleLoader__.load({
     }
 
     // ── transport ────────────────────────────────────────────────────────────
-    async function post(endpoint, payload) {
+    async function post(endpoint, payload, signal) {
       const res = await fetch(`/file-scout/${endpoint}`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(payload || {}),
+        ...signal === undefined ? {} : { signal },
       })
       const body = await res.json().catch(() => null)
       if (!body) throw new Error(`HTTP ${res.status}`)
@@ -509,6 +510,7 @@ window.__ModuleLoader__.load({
       const inputRef = useRef(null)
       const listRef = useRef(null)
       const comboRef = useRef(null)
+      const scanAbort = useRef(null)
       const overlayRef = useRef(null)
       const searchToken = useRef(0)
       const dragRef = useRef(null)
@@ -563,19 +565,25 @@ window.__ModuleLoader__.load({
       const scanTypesNow = useCallback(() => {
         if (!root) return
         const snapshot = currentSettings()
+        // Only one scan may run at a time: a second open (or a manual rescan)
+        // aborts the previous one so ripgrep processes cannot pile up.
+        scanAbort.current?.abort()
+        const controller = new AbortController()
+        scanAbort.current = controller
         setTypeLoading(true)
         post('types', {
           root,
           includeHidden: snapshot.includeHidden !== false,
           exclude: snapshot.exclude,
-        }).then((value) => {
+        }, controller.signal).then((value) => {
           const record = { at: Date.now(), total: value.total, types: value.types }
           saveTypeIndex(root, record)
           setTypeIndex(record)
         }).catch((error) => {
+          if (error?.name === 'AbortError') return
           console.warn('[dsh-file-scout] type scan failed:', error?.message ?? error)
         }).finally(() => {
-          setTypeLoading(false)
+          if (scanAbort.current === controller) setTypeLoading(false)
         })
       }, [root])
 
@@ -627,7 +635,9 @@ window.__ModuleLoader__.load({
         setSelected(0)
         setBusy(true)
         setError(null)
+        const controller = new AbortController()
         const timer = window.setTimeout(() => {
+          controller.signal.throwIfAborted?.()
           post('search', {
             root,
             mode,
@@ -637,7 +647,7 @@ window.__ModuleLoader__.load({
             includeHidden,
             exclude,
             types: parseTypeMasks(typeText),
-          }).then((value) => {
+          }, controller.signal).then((value) => {
             if (searchToken.current !== token) return
             setBusy(false)
             setMatches(value.matches)
@@ -650,6 +660,7 @@ window.__ModuleLoader__.load({
               setHistory(next.slice(0, HISTORY_LIMIT))
             }
           }).catch((err) => {
+            if (err?.name === 'AbortError') return
             if (searchToken.current !== token) return
             setBusy(false)
             setMatches(null)
@@ -657,7 +668,12 @@ window.__ModuleLoader__.load({
             setError(err?.message ?? 'search failed')
           })
         }, 200)
-        return () => window.clearTimeout(timer)
+        // A new query (or closing the palette) cancels the in-flight request so
+        // the host kills its ripgrep instead of leaving it running.
+        return () => {
+          window.clearTimeout(timer)
+          controller.abort()
+        }
       }, [open, root, mode, query, caseSensitive, regexMode, includeHidden, exclude, typeText, t])
 
       // ── rows ───────────────────────────────────────────────────────────────
