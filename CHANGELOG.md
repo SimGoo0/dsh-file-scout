@@ -4,6 +4,24 @@ All notable changes to `dsh-file-scout` are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.3.0] - 2026-11-20
+
+### Added
+
+- Two row actions after `@`: **⎘ copy path** (absolute path to the clipboard,
+  with a transient "已复制路径" notice) and **↗ open with** — a menu listing
+  the OS apps registered for that file (from the Host Remote's
+  `workspacePathApplications`), plus "默认应用" and "在文件管理器中显示"
+  (`openWorkspacePath` with `action: 'reveal'`). Same host channel
+  dsh-better-sidebar uses; degrades to a notice when the deployment has no
+  desktop bridge.
+
+### Changed
+
+- The type index now refreshes on **every** palette open (background
+  `rg --files` scan) instead of waiting out the 24-hour cache; the cached
+  result is still shown immediately so the dropdown is never empty.
+
 ## [0.2.5] - 2026-11-20
 
 ### Changed
@@ -123,6 +141,7 @@ All notable changes to `dsh-file-scout` are recorded here. The format follows
   ripgrep with bounded budgets (100k listed files, 400 results, 30 s deadline)
   and reporting truncation plus rg diagnostics honestly.
 
+[0.3.0]: https://github.com/SimGoo0/dsh-file-scout/compare/v0.2.5...v0.3.0
 [0.2.5]: https://github.com/SimGoo0/dsh-file-scout/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/SimGoo0/dsh-file-scout/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/SimGoo0/dsh-file-scout/compare/v0.2.2...v0.2.3

@@ -95,6 +95,13 @@ window.__ModuleLoader__.load({
         typeLabel: '文件掩码',
         typeRescan: '重扫文件类型',
         typeScanning: '扫描类型中…',
+        copyPath: '复制文件路径',
+        copiedPath: '已复制路径',
+        copyFailed: '复制失败',
+        openWith: '选择应用打开',
+        defaultApp: '默认应用',
+        revealInOs: '在文件管理器中显示',
+        openFailed: '打开失败',
       },
       en: {
         title: 'File Scout',
@@ -139,6 +146,13 @@ window.__ModuleLoader__.load({
         typeLabel: 'Mask',
         typeRescan: 'Rescan file types',
         typeScanning: 'Scanning types…',
+        copyPath: 'Copy file path',
+        copiedPath: 'Path copied',
+        copyFailed: 'Copy failed',
+        openWith: 'Open with…',
+        defaultApp: 'Default app',
+        revealInOs: 'Reveal in file manager',
+        openFailed: 'Could not open',
       },
     }
 
@@ -224,8 +238,6 @@ window.__ModuleLoader__.load({
     }
 
     // ── project type index (scanned once per workspace) ──────────────────────
-    const TYPES_TTL = 24 * 60 * 60 * 1000
-
     function typesKey(root) {
       return `file-scout:types:${root || ''}`
     }
@@ -247,10 +259,6 @@ window.__ModuleLoader__.load({
       } catch {
         // The index is a cache; losing it only costs one rescan.
       }
-    }
-
-    function isTypeIndexStale(record) {
-      return !record || typeof record.at !== 'number' || Date.now() - record.at > TYPES_TTL
     }
 
     // ── settings (persisted, shared by palette + settings page) ──────────────
@@ -485,6 +493,8 @@ window.__ModuleLoader__.load({
       const [typeLoading, setTypeLoading] = useState(false)
       const [typeText, setTypeText] = useState('')
       const [typeOpen, setTypeOpen] = useState(false)
+      const [notice, setNotice] = useState('')
+      const [appMenu, setAppMenu] = useState(null)
       const [root, setRoot] = useState(null)
       const [sessionId, setSessionId] = useState(null)
       const [busy, setBusy] = useState(false)
@@ -574,9 +584,11 @@ window.__ModuleLoader__.load({
           setTypeIndex(null)
           return undefined
         }
+        // Show the last scan immediately, then refresh in the background on
+        // every open so newly added or deleted files are reflected.
         const cached = loadTypeIndex(root)
-        setTypeIndex(cached)
-        if (isTypeIndexStale(cached)) scanTypesNow()
+        if (cached) setTypeIndex(cached)
+        scanTypesNow()
         return undefined
       }, [open, root, scanTypesNow])
 
@@ -722,6 +734,80 @@ window.__ModuleLoader__.load({
         return () => document.removeEventListener('mousedown', onPointerDown, true)
       }, [typeOpen])
 
+      const flashNotice = (text) => {
+        setNotice(text)
+        window.setTimeout(() => setNotice((current) => (current === text ? '' : current)), 1800)
+      }
+
+      const copyPath = async (filePath) => {
+        try {
+          await navigator.clipboard.writeText(filePath)
+          flashNotice(t('copiedPath'))
+        } catch {
+          flashNotice(t('copyFailed'))
+        }
+      }
+
+      /** Host remote face that can hand a path to the desktop (same as better-sidebar). */
+      const remoteSession = () => {
+        try {
+          return ctx?.get?.('remote')?.session
+        } catch {
+          return undefined
+        }
+      }
+
+      const openWithMenu = async (filePath, event) => {
+        const rect = event.currentTarget.getBoundingClientRect()
+        const session = remoteSession()
+        let apps = []
+        if (session?.workspacePathApplications) {
+          try {
+            const result = await session.workspacePathApplications({ path: filePath })
+            if (result?.ok && Array.isArray(result.value)) apps = result.value
+          } catch {
+            // No OS handler list — the default entry still works.
+          }
+        }
+        setAppMenu({
+          path: filePath,
+          x: Math.max(8, Math.min(rect.left, window.innerWidth - 240)),
+          y: Math.min(rect.bottom + 4, window.innerHeight - 40 - apps.length * 30),
+          apps,
+        })
+      }
+
+      const launchWith = async (application) => {
+        const menu = appMenu
+        if (!menu) return
+        setAppMenu(null)
+        const session = remoteSession()
+        if (!session?.openWorkspacePath) {
+          flashNotice(t('openFailed'))
+          return
+        }
+        try {
+          const result = await session.openWorkspacePath({
+            path: menu.path,
+            ...application === undefined ? {} : { application },
+          })
+          if (!result?.ok) flashNotice(t('openFailed'))
+        } catch {
+          flashNotice(t('openFailed'))
+        }
+      }
+
+      const revealInOs = async (filePath) => {
+        setAppMenu(null)
+        const session = remoteSession()
+        if (!session?.openWorkspacePath) return
+        try {
+          await session.openWorkspacePath({ path: filePath, action: 'reveal' })
+        } catch {
+          flashNotice(t('openFailed'))
+        }
+      }
+
       const onKeyDownInput = (event) => {
         if (event.key === 'Escape') {
           event.preventDefault()
@@ -846,6 +932,31 @@ window.__ModuleLoader__.load({
       }
 
       let rowIdx = -1
+      /** Per-row actions after `@`: copy the absolute path, or pick an app. */
+      const fileActions = (filePath) => [
+        h('button', {
+          key: 'copy',
+          type: 'button',
+          className: 'dfs-ref',
+          title: t('copyPath'),
+          onMouseDown: (event) => event.stopPropagation(),
+          onClick: (event) => {
+            event.stopPropagation()
+            copyPath(filePath)
+          },
+        }, '⎘'),
+        h('button', {
+          key: 'open',
+          type: 'button',
+          className: 'dfs-ref',
+          title: t('openWith'),
+          onMouseDown: (event) => event.stopPropagation(),
+          onClick: (event) => {
+            event.stopPropagation()
+            openWithMenu(filePath, event)
+          },
+        }, '↗'),
+      ]
       let status = busy
         ? t('busy')
         : error !== null
@@ -860,6 +971,7 @@ window.__ModuleLoader__.load({
       if (typeof meta?.diagnostics === 'string' && meta.diagnostics !== '') {
         status += ` · ${meta.diagnostics}`
       }
+      if (notice !== '') status = status === '' ? notice : `${status} · ${notice}`
 
       const sidebarMissing = ctx?.get?.('betterSidebar') === undefined
 
@@ -1065,7 +1177,8 @@ window.__ModuleLoader__.load({
                       if (result.ok) setOpen(false)
                       else setError(result.reason)
                     },
-                  }, '@')),
+                  }, '@'),
+                  ...fileActions(group.path)),
                 group.matches.map((m) => {
                   rowIdx += 1
                   const idx = rowIdx
@@ -1103,12 +1216,36 @@ window.__ModuleLoader__.load({
                       if (result.ok) setOpen(false)
                       else setError(result.reason)
                     },
-                  }, '@')))
+                  }, '@'),
+                  ...fileActions(m.path)))
                 : null),
           h('div', { className: 'dfs-foot' },
             h('span', { className: 'dfs-hint' }, t('hint')),
             root ? h('span', { className: 'dfs-root', title: root }, `${t('scope')}: ${root}`) : null,
             sidebarMissing ? h('span', { className: 'dfs-warn' }, t('noSidebar')) : null),
+          appMenu ? h('div', {
+            className: 'dfs-appmenu',
+            style: { left: `${appMenu.x}px`, top: `${appMenu.y}px` },
+            onMouseDown: (event) => event.stopPropagation(),
+          },
+            h('button', {
+              type: 'button',
+              className: 'dfs-appmenu-item',
+              onClick: () => launchWith(undefined),
+            }, t('defaultApp')),
+            appMenu.apps.map((app) => h('button', {
+              key: app.id,
+              type: 'button',
+              className: 'dfs-appmenu-item',
+              title: app.id,
+              onClick: () => launchWith(app.id),
+            }, app.name ?? app.id)),
+            h('div', { className: 'dfs-appmenu-sep' }),
+            h('button', {
+              type: 'button',
+              className: 'dfs-appmenu-item',
+              onClick: () => revealInOs(appMenu.path),
+            }, t('revealInOs'))) : null,
           ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'].map((dir) => h('div', {
             key: dir,
             className: `dfs-handle dfs-handle-${dir}`,
@@ -1261,6 +1398,13 @@ window.__ModuleLoader__.load({
         'body[data-ds-dark-theme] .dfs-type-item:hover{background:#2a2a35}',
         '.dfs-type-check{flex:none;width:12px;text-align:center;color:var(--dsw-alias-focus,#4a7bd0);font-size:11px;line-height:1}',
         '.dfs-type-item-on{color:var(--dsw-alias-focus,#4a7bd0);font-weight:600}',
+        '.dfs-appmenu{position:fixed;z-index:20;min-width:190px;max-width:280px;max-height:340px;overflow-y:auto;border:1px solid var(--dsw-alias-border,#d9d9e0);border-radius:9px;background:var(--dsw-alias-bg-layer-1,#ffffff);box-shadow:0 14px 36px rgba(0,0,0,.28);padding:5px;font-size:12.5px}',
+        'body[data-ds-dark-theme] .dfs-appmenu{background:#1b1b22;border-color:#33333d;box-shadow:0 14px 36px rgba(0,0,0,.6)}',
+        '.dfs-appmenu-item{display:block;width:100%;text-align:left;border:none;border-radius:6px;background:transparent;color:inherit;padding:5px 9px;cursor:pointer;font-family:inherit;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+        '.dfs-appmenu-item:hover{background:var(--dsw-alias-bg-layer-2,#ececf1)}',
+        'body[data-ds-dark-theme] .dfs-appmenu-item:hover{background:#2a2a35}',
+        '.dfs-appmenu-sep{margin:4px 6px;border-top:1px solid var(--dsw-alias-border,#e5e5ea)}',
+        'body[data-ds-dark-theme] .dfs-appmenu-sep{border-top-color:#2c2c36}',
         '.dfs-type-sep{margin:4px 6px 2px;padding-top:4px;border-top:1px solid var(--dsw-alias-border,#e2e2e8);opacity:.5;font-size:11px;font-family:inherit}',
         'body[data-ds-dark-theme] .dfs-type-sep{border-top-color:#2c2c36}',
         '.dfs-type-rescan{flex:none;border:none;border-radius:6px;background:transparent;color:inherit;opacity:.55;cursor:pointer;font-size:13px;padding:2px 6px;font-family:inherit}',
