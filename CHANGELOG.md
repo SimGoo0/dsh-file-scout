@@ -4,6 +4,17 @@ All notable changes to `dsh-file-scout` are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.5] - 2026-11-20
+
+### Changed
+
+- The mask dropdown always lists the full common set — `java`, `properties`,
+  `xml`, `json`, `yml/yaml`, `md`, `html/htm`, `css/scss/less`, `vue`,
+  `js/mjs/cjs`, `ts`, `jsx/tsx`, `sql`, `jsp/ftl/vm/tpl`, shells, `py`, `go`,
+  `rs`, `kt`, `gradle`, office documents, images — whether or not the workspace
+  scan found that type. Project-specific extras follow under an "其他" divider.
+  Picking a common type the project lacks simply returns no matches.
+
 ## [0.2.4] - 2026-11-20
 
 ### Changed
@@ -112,6 +123,7 @@ All notable changes to `dsh-file-scout` are recorded here. The format follows
   ripgrep with bounded budgets (100k listed files, 400 results, 30 s deadline)
   and reporting truncation plus rg diagnostics honestly.
 
+[0.2.5]: https://github.com/SimGoo0/dsh-file-scout/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/SimGoo0/dsh-file-scout/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/SimGoo0/dsh-file-scout/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/SimGoo0/dsh-file-scout/compare/v0.2.1...v0.2.2

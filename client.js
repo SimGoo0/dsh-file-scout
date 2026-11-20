@@ -30,9 +30,12 @@ window.__ModuleLoader__.load({
     const OPEN_EVENT = 'dsh-file-scout:open'
     /** Common extensions listed first in the type picker, in this order. */
     const COMMON_TYPES = [
-      'java', 'html', 'css', 'vue', 'js', 'ts', 'jsx', 'tsx', 'xml', 'sql', 'json', 'md',
-      'yml', 'yaml', 'properties', 'jsp', 'ftl', 'py', 'sh', 'bat',
-      'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'pdf', 'txt',
+      'java', 'properties', 'xml', 'json', 'yml', 'yaml', 'md',
+      'html', 'htm', 'css', 'scss', 'less', 'vue', 'js', 'mjs', 'cjs', 'ts', 'jsx', 'tsx',
+      'sql', 'jsp', 'ftl', 'vm', 'tpl', 'sh', 'bat', 'cmd', 'ps1', 'py', 'go', 'rs',
+      'kt', 'gradle', 'php', 'rb', 'cs', 'c', 'h', 'cpp',
+      'conf', 'ini', 'log', 'csv', 'txt', 'map',
+      'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'pdf',
       'png', 'jpg', 'jpeg', 'gif', 'svg',
     ]
     const MIN_W = 460
@@ -819,10 +822,11 @@ window.__ModuleLoader__.load({
 
       const modeHistory = history.filter((item) => item.mode === mode)
       const scannedTypes = (typeIndex?.types ?? []).map((item) => item.ext)
-      const suggestedTypes = [
-        ...COMMON_TYPES.filter((ext) => scannedTypes.includes(ext)),
-        ...scannedTypes.filter((ext) => !COMMON_TYPES.includes(ext)),
-      ].slice(0, 40)
+      // Common types are always offered — a workspace without a `.properties`
+      // file still lets you type or pick that mask; the scan only adds the
+      // project-specific extras after them.
+      const commonList = COMMON_TYPES
+      const extraTypes = scannedTypes.filter((ext) => !COMMON_TYPES.includes(ext))
       const suggestions = query.trim() === ''
         ? []
         : modeHistory
@@ -940,9 +944,22 @@ window.__ModuleLoader__.load({
                 onMouseDown: (event) => event.preventDefault(),
                 onClick: () => setTypeOpen(!typeOpen),
               }, '▾'),
-              typeOpen && suggestedTypes.length > 0
+              typeOpen
                 ? h('div', { className: 'dfs-type-menu' },
-                  suggestedTypes.map((ext) => {
+                  commonList.map((ext) => {
+                    const picked = parseTypeMasks(typeText).includes(ext)
+                    return h('button', {
+                      key: ext,
+                      type: 'button',
+                      className: `dfs-type-item${picked ? ' dfs-type-item-on' : ''}`,
+                      onMouseDown: (event) => event.preventDefault(),
+                      onClick: () => toggleType(ext),
+                    },
+                      h('span', { className: 'dfs-type-check' }, picked ? '✓' : ''),
+                      ext)
+                  }),
+                  extraTypes.length > 0 ? h('div', { className: 'dfs-type-sep' }, '其他') : null,
+                  extraTypes.map((ext) => {
                     const picked = parseTypeMasks(typeText).includes(ext)
                     return h('button', {
                       key: ext,
@@ -1244,6 +1261,8 @@ window.__ModuleLoader__.load({
         'body[data-ds-dark-theme] .dfs-type-item:hover{background:#2a2a35}',
         '.dfs-type-check{flex:none;width:12px;text-align:center;color:var(--dsw-alias-focus,#4a7bd0);font-size:11px;line-height:1}',
         '.dfs-type-item-on{color:var(--dsw-alias-focus,#4a7bd0);font-weight:600}',
+        '.dfs-type-sep{margin:4px 6px 2px;padding-top:4px;border-top:1px solid var(--dsw-alias-border,#e2e2e8);opacity:.5;font-size:11px;font-family:inherit}',
+        'body[data-ds-dark-theme] .dfs-type-sep{border-top-color:#2c2c36}',
         '.dfs-type-rescan{flex:none;border:none;border-radius:6px;background:transparent;color:inherit;opacity:.55;cursor:pointer;font-size:13px;padding:2px 6px;font-family:inherit}',
         '.dfs-type-rescan:hover{opacity:1;background:var(--dsw-alias-bg-layer-2,#ececf1)}',
         '.dfs-suggest{display:flex;gap:6px;align-items:center;padding:6px 14px 0;flex:none;overflow:hidden}',
