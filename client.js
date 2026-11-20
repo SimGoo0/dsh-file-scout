@@ -264,7 +264,7 @@ window.__ModuleLoader__.load({
     // ── settings (persisted, shared by palette + settings page) ──────────────
     const SETTINGS_KEY = 'file-scout:settings'
     const DEFAULT_SETTINGS = {
-      exclude: 'node_modules,dist,build,.gradle',
+      exclude: 'node_modules,dist,build,.gradle,_dist,.svn,.idea,target',
       doubleShift: true,
       includeHidden: true,
       nameKey: '',
@@ -1126,17 +1126,20 @@ window.__ModuleLoader__.load({
                 updateSettings({ includeHidden: !includeHidden })
               },
             }, '👁')),
-          mode === 'content' ? h('input', {
+          // One exclude list shared by both modes: the host turns it into
+          // `--glob '!pattern'` for name search and content search alike.
+          h('input', {
             className: 'dfs-exclude',
             type: 'text',
             value: exclude,
             title: t('excludeLabel'),
+            placeholder: 'node_modules,dist,build,.gradle,.svn,.idea,target',
             spellCheck: false,
             onChange: (e) => {
               setExclude(e.target.value)
               updateSettings({ exclude: e.target.value })
             },
-          }) : null,
+          }),
           suggestions.length > 0 ? h('div', { className: 'dfs-suggest' },
             h('span', { className: 'dfs-suggest-label' }, t('history')),
             suggestions.map((item) => h('button', {

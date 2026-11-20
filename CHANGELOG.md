@@ -4,6 +4,17 @@ All notable changes to `dsh-file-scout` are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.3.4] - 2026-11-20
+
+### Changed
+
+- The exclude list is now visible and editable in **both** modes instead of
+  only under 内容. It was always applied to name search too (the host passes
+  `--glob '!pattern'` to `rg --files` as well as to content search), but the
+  box was hidden in 文件名, so the exclusion looked like it did not exist there.
+- Default exclude list is now
+  `node_modules,dist,build,.gradle,_dist,.svn,.idea,target`.
+
 ## [0.3.3] - 2026-11-20
 
 ### Fixed
@@ -176,6 +187,7 @@ All notable changes to `dsh-file-scout` are recorded here. The format follows
   ripgrep with bounded budgets (100k listed files, 400 results, 30 s deadline)
   and reporting truncation plus rg diagnostics honestly.
 
+[0.3.4]: https://github.com/SimGoo0/dsh-file-scout/compare/v0.3.3...v0.3.4
 [0.3.3]: https://github.com/SimGoo0/dsh-file-scout/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/SimGoo0/dsh-file-scout/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/SimGoo0/dsh-file-scout/compare/v0.3.0...v0.3.1
