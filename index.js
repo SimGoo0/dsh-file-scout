@@ -205,6 +205,20 @@ function excludeArgs(exclude) {
   return args
 }
 
+/**
+ * Translate selected extensions into rg `--glob '*.ext'` arguments.
+ * Multiple globs OR together in ripgrep, so a type filter narrows the walk to
+ * just those files instead of filtering after the fact.
+ */
+function typeGlobs(types) {
+  const args = []
+  for (const ext of Array.isArray(types) ? types : []) {
+    if (typeof ext !== 'string' || !/^[A-Za-z0-9_+-]{1,16}$/u.test(ext)) continue
+    args.push('--glob', `*.${ext}`)
+  }
+  return args
+}
+
 function escapeLiteral(text) {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
@@ -293,6 +307,7 @@ async function searchNames(ctx, spec) {
   const argv = [
     '--files', '--sort', 'path', '--null', '--path-separator=/',
     ...spec.includeHidden ? ['--hidden'] : [],
+    ...typeGlobs(spec.types),
     ...excludeArgs(spec.exclude),
     ...VCS_GLOBS.map((g) => `--glob=${g}`),
   ]
@@ -350,6 +365,7 @@ async function searchContent(ctx, spec) {
     `--max-count=${LIMITS.maxPerFile}`,
     ...spec.includeHidden ? ['--hidden'] : [],
     ...spec.caseSensitive ? [] : ['--ignore-case'],
+    ...typeGlobs(spec.types),
     ...excludeArgs(spec.exclude),
     ...VCS_GLOBS.map((g) => `--glob=${g}`),
     pattern,
@@ -395,9 +411,48 @@ async function searchContent(ctx, spec) {
   }
 }
 
+/**
+ * Scan the workspace once and bucket its files by extension, so the palette
+ * can offer a type filter and narrow later searches to `--glob '*.ext'`.
+ * Unsuffixed files are reported under the empty key `""`.
+ */
+async function scanTypes(ctx, spec) {
+  const argv = [
+    '--files', '--null', '--path-separator=/',
+    ...spec.includeHidden ? ['--hidden'] : [],
+    ...excludeArgs(spec.exclude),
+    ...VCS_GLOBS.map((g) => `--glob=${g}`),
+  ]
+  const run = runRg([spec.rg, ...argv], spec.root, spec.signal)
+  const counts = new Map()
+  let total = 0
+  let stopped = false
+  stopped = await drain(run.child, '\0', (record) => {
+    const rel = record.replace(/\\/g, '/')
+    if (rel === '') return true
+    total += 1
+    if (total > LIMITS.maxEntries) return false
+    const name = rel.slice(rel.lastIndexOf('/') + 1)
+    const dot = name.lastIndexOf('.')
+    const ext = dot > 0 ? name.slice(dot + 1).toLowerCase() : ''
+    if (ext === '') return true
+    counts.set(ext, (counts.get(ext) ?? 0) + 1)
+    return true
+  }, run)
+  const outcome = await run.done
+  const types = [...counts.entries()]
+    .map(([ext, count]) => ({ ext, count }))
+    .sort((a, b) => b.count - a.count || (a.ext < b.ext ? -1 : 1))
+  return {
+    total,
+    types: types.slice(0, 60),
+    truncated: stopped || total > LIMITS.maxEntries,
+    diagnostics: diagnosticsOf(outcome),
+  }
+}
+
 /** One short human-readable line about a finished rg run, empty when clean. */
-function diagnosticsOf(outcome) {
-  if (outcome === undefined) return ''
+function diagnosticsOf(outcome) {  if (outcome === undefined) return ''
   const parts = []
   if (outcome.error) parts.push(outcome.error)
   if (outcome.exitCode !== null && outcome.exitCode !== 0 && outcome.exitCode !== 1) {
@@ -466,6 +521,7 @@ export function apply(ctx) {
                 caseSensitive: body?.caseSensitive === true,
                 regex: body?.regex === true,
                 includeHidden: body?.includeHidden === true,
+                types: Array.isArray(body?.types) ? body.types : [],
                 exclude: typeof body?.exclude === 'string' ? body.exclude : 'node_modules',
                 signal: controller.signal,
               }
@@ -483,6 +539,37 @@ export function apply(ctx) {
                 listed: result.listed,
                 truncated: result.truncated,
                 incomplete: result.incomplete,
+                diagnostics: result.diagnostics ?? '',
+              }))
+            } finally {
+              clearTimeout(timer)
+            }
+            return
+          }
+
+          if (endpoint === 'types') {
+            const root = String(body?.root ?? '')
+            if (!isAbsolute(root) || !isDirectory(root)) {
+              json(res, 200, fail(`scan root must be an existing absolute directory, got "${root}"`))
+              return
+            }
+            const controller = new AbortController()
+            const timer = setTimeout(() => controller.abort(), LIMITS.timeoutMs)
+            const started = Date.now()
+            try {
+              const result = await scanTypes(ctx, {
+                rg: rg.path,
+                root,
+                includeHidden: body?.includeHidden === true,
+                exclude: typeof body?.exclude === 'string' ? body.exclude : 'node_modules',
+                signal: controller.signal,
+              })
+              json(res, 200, ok({
+                root,
+                elapsedMs: Date.now() - started,
+                total: result.total,
+                types: result.types,
+                truncated: result.truncated,
                 diagnostics: result.diagnostics ?? '',
               }))
             } finally {

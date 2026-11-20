@@ -79,6 +79,9 @@ window.__ModuleLoader__.load({
         settingsHint: '修改即时保存，下次打开面板生效；自定义快捷键与双击 Shift 可同时使用。',
         settingsReset: '恢复默认',
         reference: '发送到聊天框（@ 引用）',
+        allTypes: '全部',
+        typeRescan: '重扫文件类型',
+        typeScanning: '扫描类型中…',
       },
       en: {
         title: 'File Scout',
@@ -117,6 +120,9 @@ window.__ModuleLoader__.load({
         settingsHint: 'Changes save immediately and apply the next time the palette opens; recorded keys and double Shift work together.',
         settingsReset: 'Reset to defaults',
         reference: 'Reference in chat (@)',
+        allTypes: 'All',
+        typeRescan: 'Rescan file types',
+        typeScanning: 'Scanning types…',
       },
     }
 
@@ -199,6 +205,36 @@ window.__ModuleLoader__.load({
       } catch {
         // Storage full or disabled — history is a convenience only.
       }
+    }
+
+    // ── project type index (scanned once per workspace) ──────────────────────
+    const TYPES_TTL = 24 * 60 * 60 * 1000
+
+    function typesKey(root) {
+      return `file-scout:types:${root || ''}`
+    }
+
+    function loadTypeIndex(root) {
+      try {
+        const raw = localStorage.getItem(typesKey(root))
+        const parsed = raw ? JSON.parse(raw) : null
+        if (!parsed || !Array.isArray(parsed.types)) return null
+        return parsed
+      } catch {
+        return null
+      }
+    }
+
+    function saveTypeIndex(root, value) {
+      try {
+        localStorage.setItem(typesKey(root), JSON.stringify({ ...value, at: Date.now() }))
+      } catch {
+        // The index is a cache; losing it only costs one rescan.
+      }
+    }
+
+    function isTypeIndexStale(record) {
+      return !record || typeof record.at !== 'number' || Date.now() - record.at > TYPES_TTL
     }
 
     // ── settings (persisted, shared by palette + settings page) ──────────────
@@ -422,6 +458,9 @@ window.__ModuleLoader__.load({
       const [regexMode, setRegexMode] = useState(false)
       const [includeHidden, setIncludeHidden] = useState(currentSettings().includeHidden !== false)
       const [exclude, setExclude] = useState(currentSettings().exclude)
+      const [typeIndex, setTypeIndex] = useState(null)
+      const [typeLoading, setTypeLoading] = useState(false)
+      const [selectedType, setSelectedType] = useState('')
       const [root, setRoot] = useState(null)
       const [sessionId, setSessionId] = useState(null)
       const [busy, setBusy] = useState(false)
@@ -484,6 +523,38 @@ window.__ModuleLoader__.load({
         }
       }, [open, ctx])
 
+      // One scan per workspace (cached for a day) gives the type filter its
+      // buckets; later searches pass the chosen extension straight to rg.
+      const scanTypesNow = useCallback(() => {
+        if (!root) return
+        const snapshot = currentSettings()
+        setTypeLoading(true)
+        post('types', {
+          root,
+          includeHidden: snapshot.includeHidden !== false,
+          exclude: snapshot.exclude,
+        }).then((value) => {
+          const record = { at: Date.now(), total: value.total, types: value.types }
+          saveTypeIndex(root, record)
+          setTypeIndex(record)
+        }).catch((error) => {
+          console.warn('[dsh-file-scout] type scan failed:', error?.message ?? error)
+        }).finally(() => {
+          setTypeLoading(false)
+        })
+      }, [root])
+
+      useEffect(() => {
+        if (!open || !root) {
+          setTypeIndex(null)
+          return undefined
+        }
+        const cached = loadTypeIndex(root)
+        setTypeIndex(cached)
+        if (isTypeIndexStale(cached)) scanTypesNow()
+        return undefined
+      }, [open, root, scanTypesNow])
+
       useEffect(() => {
         if (!open) return
         setHistory(loadHistory(root))
@@ -521,7 +592,14 @@ window.__ModuleLoader__.load({
         setError(null)
         const timer = window.setTimeout(() => {
           post('search', {
-            root, mode, query: query.trim(), caseSensitive, regex: regexMode, includeHidden, exclude,
+            root,
+            mode,
+            query: query.trim(),
+            caseSensitive,
+            regex: regexMode,
+            includeHidden,
+            exclude,
+            types: selectedType ? [selectedType] : [],
           }).then((value) => {
             if (searchToken.current !== token) return
             setBusy(false)
@@ -543,7 +621,7 @@ window.__ModuleLoader__.load({
           })
         }, 200)
         return () => window.clearTimeout(timer)
-      }, [open, root, mode, query, caseSensitive, regexMode, includeHidden, exclude, t])
+      }, [open, root, mode, query, caseSensitive, regexMode, includeHidden, exclude, selectedType, t])
 
       // ── rows ───────────────────────────────────────────────────────────────
       const rows = useMemo(() => {
@@ -822,6 +900,25 @@ window.__ModuleLoader__.load({
               updateSettings({ exclude: e.target.value })
             },
           }) : null,
+          h('div', { className: 'dfs-types' },
+            h('button', {
+              type: 'button',
+              className: `dfs-type-chip${selectedType === '' ? ' dfs-type-on' : ''}`,
+              onClick: () => setSelectedType(''),
+            }, t('allTypes'), typeIndex ? ` ${typeIndex.total}` : ''),
+            ...((typeIndex?.types ?? []).slice(0, 12).map((tp) => h('button', {
+              key: tp.ext,
+              type: 'button',
+              title: `.${tp.ext} · ${tp.count}`,
+              className: `dfs-type-chip${selectedType === tp.ext ? ' dfs-type-on' : ''}`,
+              onClick: () => setSelectedType(selectedType === tp.ext ? '' : tp.ext),
+            }, tp.ext, ' ', String(tp.count)))),
+            h('button', {
+              type: 'button',
+              className: 'dfs-type-rescan',
+              title: typeLoading ? t('typeScanning') : t('typeRescan'),
+              onClick: () => scanTypesNow(),
+            }, typeLoading ? '…' : '⟳')),
           suggestions.length > 0 ? h('div', { className: 'dfs-suggest' },
             h('span', { className: 'dfs-suggest-label' }, t('history')),
             suggestions.map((item) => h('button', {
@@ -902,6 +999,7 @@ window.__ModuleLoader__.load({
                 },
                   h('span', { className: 'dfs-name', title: m.path },
                     h(Highlighted, { text: rows[idx].base, query, regexMode, caseSensitive })),
+                  h('span', { className: 'dfs-dir', title: m.path }, dirOf(m.path)),
                   rows[idx].ext ? h('span', { className: 'dfs-ext' }, rows[idx].ext) : null,
                   h('button', {
                     type: 'button',
@@ -1057,6 +1155,12 @@ window.__ModuleLoader__.load({
         'body[data-ds-dark-theme] .dfs-toggle:hover{background:var(--dsw-alias-bg-layer-2,#22222b)}',
         '.dfs-toggle-on,.dfs-toggle-on:hover{opacity:1;background:var(--dsw-alias-focus,#4a7bd0);border-color:var(--dsw-alias-focus,#4a7bd0);color:#ffffff}',
         '.dfs-exclude{margin:6px 14px 0;height:28px;flex:none;border:1px dashed var(--dsw-alias-border,#d9d9e0);border-radius:6px;background:transparent;color:inherit;opacity:.85;padding:0 8px;font-size:13px;outline:none;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}',
+        '.dfs-types{display:flex;gap:6px;align-items:center;padding:6px 14px 0;flex:none;overflow-x:auto;overflow-y:hidden}',
+        '.dfs-type-chip{flex:none;border:1px solid var(--dsw-alias-border,#d9d9e0);border-radius:999px;background:transparent;color:inherit;opacity:.7;padding:2px 9px;font-size:11.5px;cursor:pointer;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:nowrap}',
+        '.dfs-type-chip:hover{opacity:1}',
+        '.dfs-type-on,.dfs-type-on:hover{opacity:1;background:var(--dsw-alias-focus,#4a7bd0);border-color:var(--dsw-alias-focus,#4a7bd0);color:#ffffff}',
+        '.dfs-type-rescan{flex:none;border:none;border-radius:6px;background:transparent;color:inherit;opacity:.55;cursor:pointer;font-size:13px;padding:2px 6px;font-family:inherit}',
+        '.dfs-type-rescan:hover{opacity:1;background:var(--dsw-alias-bg-layer-2,#ececf1)}',
         '.dfs-suggest{display:flex;gap:6px;align-items:center;padding:6px 14px 0;flex:none;overflow:hidden}',
         '.dfs-suggest-label{flex:none;opacity:.45;font-size:12px}',
         '.dfs-chip{flex:none;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:1px solid var(--dsw-alias-border,#e2e2e8);background:transparent;color:inherit;opacity:.8;border-radius:999px;padding:2px 10px;font-size:12.5px;cursor:pointer;font-family:inherit}',
@@ -1084,7 +1188,7 @@ window.__ModuleLoader__.load({
         'body[data-ds-dark-theme] .dfs-row:hover{background:var(--dsw-alias-bg-layer-2,#22222b)}',
         '.dfs-row-on,.dfs-row-on:hover{background:var(--dsw-alias-bg-active,#dbe4ff)}',
         'body[data-ds-dark-theme] .dfs-row-on,body[data-ds-dark-theme] .dfs-row-on:hover{background:var(--dsw-alias-bg-active,#2a3550)}',
-        '.dfs-name{font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+        '.dfs-name{font-weight:600;flex:none;max-width:46%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:inherit}',
         '.dfs-ext{flex:none;font-size:11px;font-weight:600;letter-spacing:.4px;padding:1px 7px;border-radius:4px;background:var(--dsw-alias-bg-layer-2,#ececf1);opacity:.75}',
         'body[data-ds-dark-theme] .dfs-ext{background:#26262e}',
         '.dfs-dir{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.5;font-size:12px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;direction:rtl;text-align:left}',

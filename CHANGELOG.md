@@ -4,6 +4,23 @@ All notable changes to `dsh-file-scout` are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.0] - 2026-11-20
+
+### Added
+
+- **File-type filter.** The palette scans the workspace once (cached per
+  workspace for a day, refreshable with ⟳) and buckets files by extension.
+  A chip row shows the top types with their counts; picking one narrows the
+  search to `--glob '*.ext'`, so ripgrep walks only those files instead of the
+  whole tree. The chosen type applies to both name and content search.
+- Host endpoint `POST /file-scout/types` returning `{ total, types: [{ext, count}] }`
+  for the scan, and `types` accepted by the search endpoint.
+
+### Changed
+
+- Name-mode rows show the file path again (grey, right after the file name and
+  type badge), truncated with a full-path tooltip; the path scrolls on hover.
+
 ## [0.1.2] - 2026-11-19
 
 ### Changed
@@ -56,6 +73,7 @@ All notable changes to `dsh-file-scout` are recorded here. The format follows
   ripgrep with bounded budgets (100k listed files, 400 results, 30 s deadline)
   and reporting truncation plus rg diagnostics honestly.
 
+[0.2.0]: https://github.com/SimGoo0/dsh-file-scout/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/SimGoo0/dsh-file-scout/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/SimGoo0/dsh-file-scout/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/SimGoo0/dsh-file-scout/releases/tag/v0.1.0
